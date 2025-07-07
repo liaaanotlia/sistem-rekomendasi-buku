@@ -4,6 +4,7 @@ from PIL import Image
 import Levenshtein
 import os
 
+# Fungsi untuk cari gambar dari ID buku
 def cari_gambar_dari_id(id_buku, folder="gambar"):
     ekstensi_mungkin = ['jpg', 'jpeg', 'png']
     for ext in ekstensi_mungkin:
@@ -12,13 +13,13 @@ def cari_gambar_dari_id(id_buku, folder="gambar"):
             return path
     return None
 
-# ========== MULAI APP ==========
+# ===== MULAI APP =====
 
 st.set_page_config(page_title="Sistem Rekomendasi Buku", layout="wide")
 st.title("📚 Sistem Rekomendasi Buku")
 st.markdown("Rekomendasi berdasarkan kemiripan judul menggunakan **Levenshtein Distance**.")
 
-# Load file Excel dengan nama "Data Buku.xlsx"
+# Load Excel
 try:
     df = pd.read_excel("Data Buku.xlsx", engine='openpyxl')
 except Exception as e:
@@ -31,35 +32,61 @@ if not kolom_wajib.issubset(set(df.columns)):
     st.error(f"Kolom Excel tidak lengkap. Harus ada: {', '.join(kolom_wajib)}")
     st.stop()
 
+# Bersihkan data kosong di Judul
+df = df.dropna(subset=['Judul'])
+
 # Pilih judul
 judul_pilihan = st.selectbox("Pilih buku yang kamu sukai:", df['Judul'])
 
-# Hitung kemiripan judul
-df_pilihan = df[df['Judul'] != judul_pilihan].copy()
-df_pilihan['Skor'] = df_pilihan['Judul'].apply(lambda x: Levenshtein.distance(x.lower(), judul_pilihan.lower()))
-df_rekomendasi = df_pilihan.sort_values(by='Skor').head(3)
+if judul_pilihan and isinstance(judul_pilihan, str):
+    # Ambil data buku yang dipilih
+    data_dipilih = df[df['Judul'] == judul_pilihan].iloc[0]
 
-# Tampilkan rekomendasi
-st.subheader("📖 Rekomendasi Buku Serupa:")
-
-for _, row in df_rekomendasi.iterrows():
+    st.subheader("📘 Detail Buku yang Dipilih:")
     col1, col2 = st.columns([1, 3])
-
     with col1:
-        path_gambar = cari_gambar_dari_id(row['ID'])
+        path_gambar = cari_gambar_dari_id(data_dipilih['ID'])
         if path_gambar:
             st.image(Image.open(path_gambar), width=150)
         else:
             st.warning("Gambar tidak ditemukan.")
-
     with col2:
-        st.markdown(f"### {row['Judul']}")
-        st.markdown(f"**Penulis:** {row['Penulis']}  \n"
-                    f"**Penerbit:** {row['Penerbit']}  \n"
-                    f"**Terbit:** {row['Tanggal Terbit']}  \n"
-                    f"**Halaman:** {row['Halaman']}  \n"
-                    f"**ISBN:** {row['ISBN']}")
+        st.markdown(f"### {data_dipilih['Judul']}")
+        st.markdown(f"**Penulis:** {data_dipilih['Penulis']}  \n"
+                    f"**Penerbit:** {data_dipilih['Penerbit']}  \n"
+                    f"**Terbit:** {data_dipilih['Tanggal Terbit']}  \n"
+                    f"**Halaman:** {data_dipilih['Halaman']}  \n"
+                    f"**ISBN:** {data_dipilih['ISBN']}")
         with st.expander("📝 Sinopsis"):
-            st.write(row['Sinopsis/Deskripsi'])
+            st.write(data_dipilih['Sinopsis/Deskripsi'])
 
     st.markdown("---")
+
+    # Hitung rekomendasi (judul lain)
+    df_pilihan = df[df['Judul'] != judul_pilihan].copy()
+    df_pilihan['Skor'] = df_pilihan['Judul'].apply(
+        lambda x: Levenshtein.distance(str(x).lower(), judul_pilihan.lower())
+    )
+    df_rekomendasi = df_pilihan.sort_values(by='Skor').head(3)
+
+    st.subheader("📖 Rekomendasi Buku Serupa:")
+    for _, row in df_rekomendasi.iterrows():
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            path_gambar = cari_gambar_dari_id(row['ID'])
+            if path_gambar:
+                st.image(Image.open(path_gambar), width=150)
+            else:
+                st.warning("Gambar tidak ditemukan.")
+        with col2:
+            st.markdown(f"### {row['Judul']}")
+            st.markdown(f"**Penulis:** {row['Penulis']}  \n"
+                        f"**Penerbit:** {row['Penerbit']}  \n"
+                        f"**Terbit:** {row['Tanggal Terbit']}  \n"
+                        f"**Halaman:** {row['Halaman']}  \n"
+                        f"**ISBN:** {row['ISBN']}")
+            with st.expander("📝 Sinopsis"):
+                st.write(row['Sinopsis/Deskripsi'])
+        st.markdown("---")
+else:
+    st.warning("Judul buku tidak valid. Silakan pilih yang tersedia.")
