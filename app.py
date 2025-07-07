@@ -90,7 +90,7 @@ if judul_pilihan:
                        (df['Skor_Penulis_Levenshtein'] * bobot_penulis)
 
     # Ambil rekomendasi tertinggi, kecuali buku itu sendiri
-    df_rekomendasi = df[df['ID'] != data_pilihan['ID']].sort_values(by='Skor_Total', ascending=False).head(3)
+    df_rekomendasi = df[df['ID'] != data_pilihan['ID']].sort_values(by='Skor_Total', ascending=False).head(5)
 
     st.subheader("📚 Rekomendasi Buku Serupa:")
     if not df_rekomendasi.empty:
