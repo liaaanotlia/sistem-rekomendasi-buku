@@ -64,28 +64,31 @@ if judul_pilihan:
 
     st.markdown("---")
 
-    # ======== KEMIRIPAN TF-IDF (CBF) ========
+    # ======== HITUNG SIMILARITY ========
+
+    # 1. TF-IDF (CBF)
     df['konten'] = (
         df['Judul'].fillna('') + ' ' +
         df['Penulis'].fillna('') + ' ' +
         df['Penerbit'].fillna('') + ' ' +
         df['Sinopsis/Deskripsi'].fillna('')
     )
-
     tfidf = TfidfVectorizer(stop_words='indonesian')
     tfidf_matrix = tfidf.fit_transform(df['konten'])
 
     idx_pilihan = df[df['Judul'] == judul_pilihan].index[0]
     cosine_sim = cosine_similarity(tfidf_matrix[idx_pilihan], tfidf_matrix).flatten()
-    df['Skor_CBF'] = cosine_sim * 100  # persen
+    df['Skor_CBF'] = cosine_sim * 100
 
-    # ======== KEMIRIPAN LEVENSHTEIN JUDUL ========
+    # 2. Levenshtein Distance (judul)
     df['Skor_Levenshtein'] = df['Judul'].apply(
         lambda x: (1 - Levenshtein.distance(x.lower(), judul_pilihan.lower()) / max(len(x), len(judul_pilihan))) * 100
     )
 
-    # Gabungkan dua skor
+    # Gabungkan skor
     df['Skor_Total'] = (df['Skor_CBF'] + df['Skor_Levenshtein']) / 2
+
+    # Ambil rekomendasi
     df_rekomendasi = df[df['Judul'] != judul_pilihan].copy()
     df_rekomendasi = df_rekomendasi.sort_values(by='Skor_Total', ascending=False).head(3)
 
@@ -100,15 +103,17 @@ if judul_pilihan:
             else:
                 st.warning("Gambar tidak ditemukan.")
         with col2:
-            st.markdown(f"### {row['Judul']}")
-            st.markdown(f"**Skor Kesamaan Total:** {round(row['Skor_Total'], 2)}%  \n"
-                        f"**(CBF:** {round(row['Skor_CBF'], 2)}% | "
-                        f"Judul:** {round(row['Skor_Levenshtein'], 2)}%)  \n"
-                        f"**Penulis:** {row['Penulis']}  \n"
-                        f"**Penerbit:** {row['Penerbit']}  \n"
-                        f"**Tanggal Terbit:** {row['Tanggal Terbit']}  \n"
-                        f"**Halaman:** {row['Halaman']}  \n"
-                        f"**ISBN:** {row['ISBN']}")
+            st.markdown(f"""
+### {row['Judul']}
+💯 **Skor Kesamaan Total:** {round(row['Skor_Total'], 2)}%  
+➡️ (CBF: {round(row['Skor_CBF'], 2)}% | Judul: {round(row['Skor_Levenshtein'], 2)}%)  
+
+**Penulis:** {row['Penulis']}  
+**Penerbit:** {row['Penerbit']}  
+**Tanggal Terbit:** {row['Tanggal Terbit']}  
+**Halaman:** {row['Halaman']}  
+**ISBN:** {row['ISBN']}
+""")
             with st.expander("📝 Sinopsis"):
                 st.write(row['Sinopsis/Deskripsi'])
         st.markdown("---")
