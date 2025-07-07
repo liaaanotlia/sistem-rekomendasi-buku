@@ -16,8 +16,9 @@ def cari_gambar_dari_id(id_buku, folder="gambar"):
     return None
 
 def hitung_kemiripan_levenshtein(a, b):
+    # Pastikan input adalah string sebelum diolah
     if not isinstance(a, str) or not isinstance(b, str):
-        return 0 # Handle non-string values
+        return 0
     if not a or not b:
         return 0
     return (1 - Levenshtein.distance(a.lower(), b.lower()) / max(len(a), len(b))) * 100
@@ -25,26 +26,22 @@ def hitung_kemiripan_levenshtein(a, b):
 # --- Load Data ---
 df = pd.read_excel("Data Buku.xlsx", engine='openpyxl')
 
-# Preprocessing: Isi NaN di 'Sinopsis/Deskripsi' dengan string kosong sebelum TF-IDF
-# Ini penting agar TF-IDF tidak error dan Levenshtein tidak error
+# Preprocessing: Isi NaN dengan string kosong sebelum TF-IDF atau Levenshtein
 df['Judul'].fillna('', inplace=True)
 df['Sinopsis/Deskripsi'].fillna('', inplace=True)
+df['Penulis'].fillna('', inplace=True) # Tambahan untuk kolom Penulis
 
 # --- Implementasi Content-Based Filtering (TF-IDF pada Sinopsis) ---
 
-# Inisialisasi TfidfVectorizer
-# stop_words='english' bisa digunakan jika teksnya berbahasa inggris dan ingin menghilangkan kata umum
 tfidf_vectorizer = TfidfVectorizer()
-
-# Fit dan transform sinopsis untuk mendapatkan matriks TF-IDF
 tfidf_matrix = tfidf_vectorizer.fit_transform(df['Sinopsis/Deskripsi'])
 
 # --- Setup UI Streamlit ---
 st.set_page_config(page_title="Rekomendasi Buku", layout="wide")
-st.title("📚 Sistem Rekomendasi Buku (CBF TF-IDF Sinopsis + Levenshtein Judul)")
+st.title("📚 Sistem Rekomendasi Buku (CBF TF-IDF Sinopsis + Levenshtein Judul & Penulis)")
 
 # Selectbox untuk memilih buku favorit
-judul_pilihan = st.selectbox("📘 Pilih buku favorit Anda:", df['Judul'].unique()) # .unique() untuk menghindari duplikasi di selectbox
+judul_pilihan = st.selectbox("📘 Pilih buku favorit Anda:", df['Judul'].unique())
 
 if judul_pilihan:
     # Ambil data buku yang dipilih
@@ -75,21 +72,26 @@ if judul_pilihan:
     # 1. Skor Kemiripan Sinopsis (menggunakan Cosine Similarity dari TF-IDF)
     idx_buku_pilihan = df[df['ID'] == data_pilihan['ID']].index[0]
     cosine_skor = cosine_similarity(tfidf_matrix[idx_buku_pilihan:idx_buku_pilihan+1], tfidf_matrix).flatten()
-    df['Skor_Sinopsis_TFIDF'] = cosine_skor * 100 # Konversi ke persentase
+    df['Skor_Sinopsis_TFIDF'] = cosine_skor * 100
 
     # 2. Skor Kemiripan Judul (menggunakan Levenshtein Distance)
     df['Skor_Judul_Levenshtein'] = df['Judul'].apply(lambda x: hitung_kemiripan_levenshtein(x, data_pilihan['Judul']))
 
-    # 3. Gabungkan Kedua Skor (dengan bobot, Anda bisa menyesuaikan bobot ini)
-    # Contoh: Sinopsis (TF-IDF) 70%, Judul (Levenshtein) 30%
-    # Anda bisa eksperimen dengan bobot ini (misalnya 0.5, 0.5 atau 0.8, 0.2)
-    bobot_sinopsis = 0.7
-    bobot_judul = 0.3
+    # 3. Skor Kemiripan Penulis (menggunakan Levenshtein Distance)
+    # Ini akan memberikan skor tinggi jika nama penulis sama persis atau sangat mirip
+    df['Skor_Penulis_Levenshtein'] = df['Penulis'].apply(lambda x: hitung_kemiripan_levenshtein(x, data_pilihan['Penulis']))
+
+    # 4. Gabungkan Ketiga Skor (dengan bobot, Anda bisa menyesuaikan bobot ini)
+    # Total bobot harus 1 (atau 100%)
+    bobot_sinopsis = 0.6  # Sinopsis mungkin tetap yang paling penting untuk relevansi konten
+    bobot_judul = 0.2     # Judul bisa jadi kurang penting dari sinopsis, tapi tetap relevan
+    bobot_penulis = 0.2   # Penulis penting untuk preferensi gaya
+
     df['Skor_Total'] = (df['Skor_Sinopsis_TFIDF'] * bobot_sinopsis) + \
-                       (df['Skor_Judul_Levenshtein'] * bobot_judul)
+                       (df['Skor_Judul_Levenshtein'] * bobot_judul) + \
+                       (df['Skor_Penulis_Levenshtein'] * bobot_penulis)
 
     # Ambil rekomendasi tertinggi, kecuali buku itu sendiri
-    # Pastikan buku yang dipilih tidak muncul di rekomendasi
     df_rekomendasi = df[df['ID'] != data_pilihan['ID']].sort_values(by='Skor_Total', ascending=False).head(3)
 
     st.subheader("📚 Rekomendasi Buku Serupa:")
@@ -106,7 +108,7 @@ if judul_pilihan:
                 st.markdown(f"""
     ### {row['Judul']}
     💯 **Skor Kesamaan Total:** {round(row['Skor_Total'], 2)}%
-    ➡️ (Sinopsis (TF-IDF): {round(row['Skor_Sinopsis_TFIDF'], 2)}% | Judul (Levenshtein): {round(row['Skor_Judul_Levenshtein'], 2)}%)
+    ➡️ (Sinopsis (TF-IDF): {round(row['Skor_Sinopsis_TFIDF'], 2)}% | Judul (Levenshtein): {round(row['Skor_Judul_Levenshtein'], 2)}% | Penulis (Levenshtein): {round(row['Skor_Penulis_Levenshtein'], 2)}%)
 
     **Penulis:** {row['Penulis']}
     **Penerbit:** {row['Penerbit']}
