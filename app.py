@@ -24,7 +24,7 @@ def hitung_kemiripan_levenshtein(a, b):
     return (1 - Levenshtein.distance(a.lower(), b.lower()) / max(len(a), len(b))) * 100
 
 # --- Load Data ---
-df = pd.read_excel("Data Buku.xlsx", engine='openypxl')
+df = pd.read_excel("Data Buku.xlsx", engine='openpyxl')
 
 # Preprocessing: Isi NaN dengan string kosong sebelum TF-IDF atau Levenshtein
 df['Judul'].fillna('', inplace=True)
