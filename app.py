@@ -37,7 +37,7 @@ tfidf_vectorizer = TfidfVectorizer()
 tfidf_matrix = tfidf_vectorizer.fit_transform(df['Sinopsis/Deskripsi'])
 
 # --- Setup UI Streamlit ---
-st.set_page_config(page_title="Rekomendasi Buku", layout="wide")
+st.set_page_config(page_title="Rekomendasi Buku", layout="wide") # Penting untuk 'wide' layout
 st.title("📚 Sistem Rekomendasi Buku")
 
 # Selectbox untuk memilih buku favorit
@@ -95,34 +95,44 @@ if judul_pilihan:
     st.subheader("📚 Rekomendasi Buku Serupa:")
     if not df_rekomendasi.empty:
         # Buat 5 kolom untuk menampilkan 5 rekomendasi secara horizontal
-        cols_rekomendasi = st.columns(5) # Membuat 5 kolom dengan lebar yang sama
+        # st.columns(spec) bisa menerima list of numbers untuk rasio lebar
+        # kita biarkan 5 kolom dengan lebar sama
+        cols_rekomendasi = st.columns(5) 
 
         for i, (index, row) in enumerate(df_rekomendasi.iterrows()):
-            with cols_rekomendasi[i]: # Masukkan konten untuk setiap buku ke kolom yang sesuai
-                gambar = cari_gambar_dari_id(row['ID'])
-                if gambar:
-                    st.image(Image.open(gambar), width=120) # Ukuran gambar bisa disesuaikan
-                else:
-                    st.warning("Gambar tidak ditemukan.")
+            if i < len(cols_rekomendasi): # Pastikan indeks kolom valid
+                with cols_rekomendasi[i]: 
+                    gambar = cari_gambar_dari_id(row['ID'])
+                    if gambar:
+                        # Ukuran gambar lebih kecil agar lebih pas di kolom
+                        st.image(Image.open(gambar), width=100) 
+                    else:
+                        st.warning("Gambar tidak ditemukan.", icon="⚠️") # Tambah icon untuk warning
 
-                st.markdown(f"""
-    **{row['Judul']}**
-    💯 Skor: {round(row['Skor_Total'], 2)}%
-    """)
-                # Kita bisa tambahkan expander untuk detail lebih lanjut di sini
-                with st.expander("📝 Detail"):
+                    # Batasi panjang judul untuk tampilan ringkas
+                    judul_tampil = row['Judul']
+                    if len(judul_tampil) > 40: # Batasi 40 karakter, sesuaikan
+                        judul_tampil = judul_tampil[:37] + "..." # Tambah elipsis
+
                     st.markdown(f"""
-    **Penulis:** {row['Penulis']}  \n
-    **Penerbit:** {row['Penerbit']}  \n
-    **Tanggal Terbit:** {row['Tanggal Terbit']}  \n
-    **Halaman:** {row['Halaman']}  \n
-    **ISBN:** {row['ISBN']}  \n
-    ---
-    **Skor Detail:** \n
-    Sinopsis : {round(row['Skor_Sinopsis_TFIDF'], 2)}%  \n
-    Judul : {round(row['Skor_Judul_Levenshtein'], 2)}%  \n
-    Penulis : {round(row['Skor_Penulis_Levenshtein'], 2)}%
+    **{judul_tampil}**
+    Skor: {round(row['Skor_Total'], 2)}%
     """)
-                    st.write(row['Sinopsis/Deskripsi'])
+                    
+                    # Detail lengkap dan sinopsis di dalam expander terpisah per kolom
+                    with st.expander("📝 Detail"):
+                        st.markdown(f"**Judul Lengkap:** {row['Judul']}")
+                        st.markdown(f"**Penulis:** {row['Penulis']}")
+                        st.markdown(f"**Penerbit:** {row['Penerbit']}")
+                        st.markdown(f"**Tanggal Terbit:** {row['Tanggal Terbit']}")
+                        st.markdown(f"**Halaman:** {row['Halaman']}")
+                        st.markdown(f"**ISBN:** {row['ISBN']}")
+                        st.markdown("---")
+                        st.markdown(f"**Skor Detail:**")
+                        st.markdown(f"Sinopsis : {round(row['Skor_Sinopsis_TFIDF'], 2)}%")
+                        st.markdown(f"Judul : {round(row['Skor_Judul_Levenshtein'], 2)}%")
+                        st.markdown(f"Penulis : {round(row['Skor_Penulis_Levenshtein'], 2)}%")
+                        st.markdown("---") # Garis pemisah sebelum sinopsis
+                        st.write(row['Sinopsis/Deskripsi'])
     else:
         st.info("Tidak ada rekomendasi yang ditemukan untuk buku ini.")
