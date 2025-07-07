@@ -38,7 +38,7 @@ tfidf_matrix = tfidf_vectorizer.fit_transform(df['Sinopsis/Deskripsi'])
 
 # --- Setup UI Streamlit ---
 st.set_page_config(page_title="Rekomendasi Buku", layout="wide")
-st.title("📚 Sistem Rekomendasi Buku (CBF TF-IDF Sinopsis + Levenshtein Judul & Penulis)")
+st.title("📚 Sistem Rekomendasi Buku")
 
 # Selectbox untuk memilih buku favorit
 judul_pilihan = st.selectbox("📘 Pilih buku favorit Anda:", df['Judul'].unique())
