@@ -89,33 +89,40 @@ if judul_pilihan:
                        (df['Skor_Judul_Levenshtein'] * bobot_judul) + \
                        (df['Skor_Penulis_Levenshtein'] * bobot_penulis)
 
-    # Ambil rekomendasi tertinggi, kecuali buku itu sendiri
+    # Ambil 5 rekomendasi tertinggi, kecuali buku itu sendiri
     df_rekomendasi = df[df['ID'] != data_pilihan['ID']].sort_values(by='Skor_Total', ascending=False).head(5)
 
     st.subheader("📚 Rekomendasi Buku Serupa:")
     if not df_rekomendasi.empty:
-        for _, row in df_rekomendasi.iterrows():
-            col1, col2 = st.columns([1, 3])
-            with col1:
+        # Buat 5 kolom untuk menampilkan 5 rekomendasi secara horizontal
+        cols_rekomendasi = st.columns(5) # Membuat 5 kolom dengan lebar yang sama
+
+        for i, (index, row) in enumerate(df_rekomendasi.iterrows()):
+            with cols_rekomendasi[i]: # Masukkan konten untuk setiap buku ke kolom yang sesuai
                 gambar = cari_gambar_dari_id(row['ID'])
                 if gambar:
-                    st.image(Image.open(gambar), width=150)
+                    st.image(Image.open(gambar), width=120) # Ukuran gambar bisa disesuaikan
                 else:
                     st.warning("Gambar tidak ditemukan.")
-            with col2:
-                st.markdown(f"""
-    ### {row['Judul']}
-    💯 **Skor Kesamaan Total:** {round(row['Skor_Total'], 2)}%
-    ➡️ (Sinopsis : {round(row['Skor_Sinopsis_TFIDF'], 2)}% | Judul : {round(row['Skor_Judul_Levenshtein'], 2)}% | Penulis : {round(row['Skor_Penulis_Levenshtein'], 2)}%)
 
+                st.markdown(f"""
+    **{row['Judul']}**
+    💯 Skor: {round(row['Skor_Total'], 2)}%
+    """)
+                # Kita bisa tambahkan expander untuk detail lebih lanjut di sini
+                with st.expander("📝 Detail"):
+                    st.markdown(f"""
     **Penulis:** {row['Penulis']}  \n
     **Penerbit:** {row['Penerbit']}  \n
     **Tanggal Terbit:** {row['Tanggal Terbit']}  \n
     **Halaman:** {row['Halaman']}  \n
-    **ISBN:** {row['ISBN']}
+    **ISBN:** {row['ISBN']}  \n
+    ---
+    **Skor Detail:** \n
+    Sinopsis : {round(row['Skor_Sinopsis_TFIDF'], 2)}%  \n
+    Judul : {round(row['Skor_Judul_Levenshtein'], 2)}%  \n
+    Penulis : {round(row['Skor_Penulis_Levenshtein'], 2)}%
     """)
-                with st.expander("📝 Sinopsis"):
                     st.write(row['Sinopsis/Deskripsi'])
-            st.markdown("---")
     else:
         st.info("Tidak ada rekomendasi yang ditemukan untuk buku ini.")
