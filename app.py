@@ -3,110 +3,77 @@ import pandas as pd
 from PIL import Image
 import Levenshtein
 import os
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
 
-# Fungsi cari gambar dari ID
 def cari_gambar_dari_id(id_buku, folder="gambar"):
-    ekstensi_mungkin = ['jpg', 'jpeg', 'png']
-    for ext in ekstensi_mungkin:
+    for ext in ['jpg', 'jpeg', 'png']:
         path = os.path.join(folder, f"{id_buku}.{ext}")
         if os.path.exists(path):
             return path
     return None
 
-# === SETUP APLIKASI ===
-st.set_page_config(page_title="Sistem Rekomendasi Buku", layout="wide")
-st.title("📚 Sistem Rekomendasi Buku")
+def hitung_kemiripan(a, b):
+    if not a or not b:
+        return 0
+    return (1 - Levenshtein.distance(a.lower(), b.lower()) / max(len(a), len(b))) * 100
 
-# Load Excel
-try:
-    df = pd.read_excel("Data Buku.xlsx", engine='openpyxl')
-except Exception as e:
-    st.error(f"Gagal membaca file 'Data Buku.xlsx': {e}")
-    st.stop()
+# Load data
+df = pd.read_excel("Data Buku.xlsx", engine='openpyxl')
+df.dropna(subset=['Judul', 'Sinopsis/Deskripsi'], inplace=True)
 
-# Validasi kolom
-kolom_wajib = {'ID', 'Judul', 'Penulis', 'Penerbit', 'Tanggal Terbit', 'ISBN', 'Halaman', 'Sinopsis/Deskripsi'}
-if not kolom_wajib.issubset(set(df.columns)):
-    st.error(f"Kolom Excel tidak lengkap. Harus ada: {', '.join(kolom_wajib)}")
-    st.stop()
+# Setup UI
+st.set_page_config(page_title="Rekomendasi Buku", layout="wide")
+st.title("📚 Sistem Rekomendasi Buku (Levenshtein Judul + Sinopsis)")
 
-# Bersihkan data
-df = df.dropna(subset=['Judul'])
-df.reset_index(drop=True, inplace=True)
-
-# Pilih judul
-st.subheader("📘 Pilih Buku Favorit untuk Dicari Rekomendasi:")
-judul_pilihan = st.selectbox("Pilih judul buku:", df['Judul'])
+judul_pilihan = st.selectbox("📘 Pilih buku favorit:", df['Judul'])
 
 if judul_pilihan:
-    data_dipilih = df[df['Judul'] == judul_pilihan].iloc[0]
+    data_pilihan = df[df['Judul'] == judul_pilihan].iloc[0]
 
-    # ======== DETAIL BUKU DIPILIH ========
     st.subheader("📖 Detail Buku yang Dipilih:")
     col1, col2 = st.columns([1, 3])
     with col1:
-        path_gambar = cari_gambar_dari_id(data_dipilih['ID'])
-        if path_gambar:
-            st.image(Image.open(path_gambar), width=150)
+        gambar = cari_gambar_dari_id(data_pilihan['ID'])
+        if gambar:
+            st.image(Image.open(gambar), width=150)
         else:
             st.warning("Gambar tidak ditemukan.")
     with col2:
-        st.markdown(f"**Judul:** {data_dipilih['Judul']}  \n"
-                    f"**Penulis:** {data_dipilih['Penulis']}  \n"
-                    f"**Penerbit:** {data_dipilih['Penerbit']}  \n"
-                    f"**Tanggal Terbit:** {data_dipilih['Tanggal Terbit']}  \n"
-                    f"**Halaman:** {data_dipilih['Halaman']}  \n"
-                    f"**ISBN:** {data_dipilih['ISBN']}")
+        st.markdown(f"**Judul:** {data_pilihan['Judul']}  \n"
+                    f"**Penulis:** {data_pilihan['Penulis']}  \n"
+                    f"**Penerbit:** {data_pilihan['Penerbit']}  \n"
+                    f"**Tanggal Terbit:** {data_pilihan['Tanggal Terbit']}  \n"
+                    f"**Halaman:** {data_pilihan['Halaman']}  \n"
+                    f"**ISBN:** {data_pilihan['ISBN']}")
         with st.expander("📝 Sinopsis"):
-            st.write(data_dipilih['Sinopsis/Deskripsi'])
+            st.write(data_pilihan['Sinopsis/Deskripsi'])
 
     st.markdown("---")
 
-    # ======== HITUNG SIMILARITY ========
+    # Hitung skor kemiripan
+    sinopsis_pilihan = data_pilihan['Sinopsis/Deskripsi']
+    judul_pilihan = data_pilihan['Judul']
 
-    # 1. TF-IDF (CBF)
-    df['konten'] = (
-        df['Judul'].fillna('') + ' ' +
-        df['Penulis'].fillna('') + ' ' +
-        df['Penerbit'].fillna('') + ' ' +
-        df['Sinopsis/Deskripsi'].fillna('')
-    )
-    tfidf = TfidfVectorizer(stop_words='indonesian')
-    tfidf_matrix = tfidf.fit_transform(df['konten'])
+    df['Skor_Judul'] = df['Judul'].apply(lambda x: hitung_kemiripan(x, judul_pilihan))
+    df['Skor_Sinopsis'] = df['Sinopsis/Deskripsi'].apply(lambda x: hitung_kemiripan(x, sinopsis_pilihan))
+    df['Skor_Total'] = (df['Skor_Judul'] + df['Skor_Sinopsis']) / 2
 
-    idx_pilihan = df[df['Judul'] == judul_pilihan].index[0]
-    cosine_sim = cosine_similarity(tfidf_matrix[idx_pilihan], tfidf_matrix).flatten()
-    df['Skor_CBF'] = cosine_sim * 100
+    # Ambil rekomendasi tertinggi, kecuali buku itu sendiri
+    df_rekomendasi = df[df['ID'] != data_pilihan['ID']].sort_values(by='Skor_Total', ascending=False).head(3)
 
-    # 2. Levenshtein Distance (judul)
-    df['Skor_Levenshtein'] = df['Judul'].apply(
-        lambda x: (1 - Levenshtein.distance(x.lower(), judul_pilihan.lower()) / max(len(x), len(judul_pilihan))) * 100
-    )
-
-    # Gabungkan skor
-    df['Skor_Total'] = (df['Skor_CBF'] + df['Skor_Levenshtein']) / 2
-
-    # Ambil rekomendasi
-    df_rekomendasi = df[df['Judul'] != judul_pilihan].copy()
-    df_rekomendasi = df_rekomendasi.sort_values(by='Skor_Total', ascending=False).head(3)
-
-    # ======== TAMPILKAN REKOMENDASI ========
     st.subheader("📚 Rekomendasi Buku Serupa:")
     for _, row in df_rekomendasi.iterrows():
         col1, col2 = st.columns([1, 3])
         with col1:
-            path_gambar = cari_gambar_dari_id(row['ID'])
-            if path_gambar:
-                st.image(Image.open(path_gambar), width=150)
+            gambar = cari_gambar_dari_id(row['ID'])
+            if gambar:
+                st.image(Image.open(gambar), width=150)
             else:
                 st.warning("Gambar tidak ditemukan.")
         with col2:
             st.markdown(f"""
 ### {row['Judul']}
 💯 **Skor Kesamaan Total:** {round(row['Skor_Total'], 2)}%  
-➡️ (CBF: {round(row['Skor_CBF'], 2)}% | Judul: {round(row['Skor_Levenshtein'], 2)}%)  
+➡️ (Judul: {round(row['Skor_Judul'], 2)}% | Sinopsis: {round(row['Skor_Sinopsis'], 2)}%)
 
 **Penulis:** {row['Penulis']}  
 **Penerbit:** {row['Penerbit']}  
