@@ -24,12 +24,12 @@ def hitung_kemiripan_levenshtein(a, b):
     return (1 - Levenshtein.distance(a.lower(), b.lower()) / max(len(a), len(b))) * 100
 
 # --- Load Data ---
-df = pd.read_excel("Data Buku.xlsx", engine='openpyxl')
+df = pd.read_excel("Data Buku.xlsx", engine='openypxl')
 
 # Preprocessing: Isi NaN dengan string kosong sebelum TF-IDF atau Levenshtein
 df['Judul'].fillna('', inplace=True)
 df['Sinopsis/Deskripsi'].fillna('', inplace=True)
-df['Penulis'].fillna('', inplace=True) # Tambahan untuk kolom Penulis
+df['Penulis'].fillna('', inplace=True)
 
 # --- Implementasi Content-Based Filtering (TF-IDF pada Sinopsis) ---
 
@@ -78,14 +78,12 @@ if judul_pilihan:
     df['Skor_Judul_Levenshtein'] = df['Judul'].apply(lambda x: hitung_kemiripan_levenshtein(x, data_pilihan['Judul']))
 
     # 3. Skor Kemiripan Penulis (menggunakan Levenshtein Distance)
-    # Ini akan memberikan skor tinggi jika nama penulis sama persis atau sangat mirip
     df['Skor_Penulis_Levenshtein'] = df['Penulis'].apply(lambda x: hitung_kemiripan_levenshtein(x, data_pilihan['Penulis']))
 
-    # 4. Gabungkan Ketiga Skor (dengan bobot, Anda bisa menyesuaikan bobot ini)
-    # Total bobot harus 1 (atau 100%)
-    bobot_sinopsis = 0.6  # Sinopsis mungkin tetap yang paling penting untuk relevansi konten
-    bobot_judul = 0.2     # Judul bisa jadi kurang penting dari sinopsis, tapi tetap relevan
-    bobot_penulis = 0.2   # Penulis penting untuk preferensi gaya
+    # 4. Gabungkan Ketiga Skor (dengan bobot)
+    bobot_sinopsis = 0.6
+    bobot_judul = 0.2
+    bobot_penulis = 0.2
 
     df['Skor_Total'] = (df['Skor_Sinopsis_TFIDF'] * bobot_sinopsis) + \
                        (df['Skor_Judul_Levenshtein'] * bobot_judul) + \
@@ -108,12 +106,12 @@ if judul_pilihan:
                 st.markdown(f"""
     ### {row['Judul']}
     💯 **Skor Kesamaan Total:** {round(row['Skor_Total'], 2)}%
-    ➡️ (Sinopsis (TF-IDF): {round(row['Skor_Sinopsis_TFIDF'], 2)}% | Judul (Levenshtein): {round(row['Skor_Judul_Levenshtein'], 2)}% | Penulis (Levenshtein): {round(row['Skor_Penulis_Levenshtein'], 2)}%)
+    ➡️ (Sinopsis : {round(row['Skor_Sinopsis_TFIDF'], 2)}% | Judul : {round(row['Skor_Judul_Levenshtein'], 2)}% | Penulis : {round(row['Skor_Penulis_Levenshtein'], 2)}%)
 
-    **Penulis:** {row['Penulis']}
-    **Penerbit:** {row['Penerbit']}
-    **Tanggal Terbit:** {row['Tanggal Terbit']}
-    **Halaman:** {row['Halaman']}
+    **Penulis:** {row['Penulis']}  \n
+    **Penerbit:** {row['Penerbit']}  \n
+    **Tanggal Terbit:** {row['Tanggal Terbit']}  \n
+    **Halaman:** {row['Halaman']}  \n
     **ISBN:** {row['ISBN']}
     """)
                 with st.expander("📝 Sinopsis"):
