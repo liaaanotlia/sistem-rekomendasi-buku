@@ -33,39 +33,16 @@ if not kolom_wajib.issubset(set(df.columns)):
 # Bersihkan baris kosong
 df = df.dropna(subset=['Judul'])
 
-# ===== FITUR SEARCH (TYPING) =====
-st.subheader("🔍 Cari Buku (Toleran Typo)")
+# ===== PILIH JUDUL MANUAL =====
+st.subheader("📘 Pilih Buku Favorit untuk Dicari Rekomendasi:")
 
-query = st.text_input("Ketik sebagian atau seluruh judul buku:")
-
-if query:
-    df['Skor_Search'] = df['Judul'].apply(lambda x: Levenshtein.distance(str(x).lower(), query.lower()))
-    df_hasil_search = df.sort_values(by='Skor_Search').head(5)
-
-    st.markdown("#### Hasil Pencarian Mirip:")
-    for _, row in df_hasil_search.iterrows():
-        if st.button(f"📘 {row['Judul']}"):
-            st.session_state['judul_terpilih'] = row['Judul']
-            st.rerun()
-else:
-    st.info("Ketik judul buku untuk mencari yang mirip.")
-
-st.markdown("---")
-
-# ===== SELECTBOX (FALLBACK) =====
-judul_default = st.session_state.get("judul_terpilih", df['Judul'].iloc[0])
-if judul_default in df['Judul'].values:
-    idx_default = df['Judul'].tolist().index(judul_default)
-else:
-    idx_default = 0  # fallback aman
-
-judul_pilihan = st.selectbox("Atau pilih buku secara manual:", df['Judul'], index=idx_default)
+judul_pilihan = st.selectbox("Pilih judul buku:", df['Judul'])
 
 # ===== TAMPILKAN DETAIL & REKOMENDASI =====
 if judul_pilihan:
     data_dipilih = df[df['Judul'] == judul_pilihan].iloc[0]
 
-    st.subheader("📘 Detail Buku yang Dipilih:")
+    st.subheader("📖 Detail Buku yang Dipilih:")
     col1, col2 = st.columns([1, 3])
     with col1:
         path_gambar = cari_gambar_dari_id(data_dipilih['ID'])
@@ -92,7 +69,7 @@ if judul_pilihan:
     )
     df_rekomendasi = df_pilihan.sort_values(by='Skor').head(3)
 
-    st.subheader("📖 Rekomendasi Buku Serupa:")
+    st.subheader("📚 Rekomendasi Buku Serupa:")
     for _, row in df_rekomendasi.iterrows():
         col1, col2 = st.columns([1, 3])
         with col1:
