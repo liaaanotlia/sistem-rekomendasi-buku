@@ -36,12 +36,34 @@ df['Penulis'].fillna('', inplace=True)
 tfidf_vectorizer = TfidfVectorizer()
 tfidf_matrix = tfidf_vectorizer.fit_transform(df['Sinopsis/Deskripsi'])
 
+# --- Callback Function untuk Rekomendasi Clickable ---
+def set_selected_book(judul_buku_yang_diklik):
+    """Fungsi ini akan dipanggil saat judul buku rekomendasi diklik."""
+    st.session_state.selected_book_from_recommendation = judul_buku_yang_diklik
+
 # --- Setup UI Streamlit ---
 st.set_page_config(page_title="Rekomendasi Buku", layout="wide")
 st.title("📚 Sistem Rekomendasi Buku")
 
+# Inisialisasi session state untuk menyimpan pilihan buku dari rekomendasi
+if 'selected_book_from_recommendation' not in st.session_state:
+    st.session_state.selected_book_from_recommendation = None
+
+# Mengambil nilai awal untuk selectbox
+initial_selection = None
+if st.session_state.selected_book_from_recommendation:
+    initial_selection = st.session_state.selected_book_from_recommendation
+    # Reset setelah digunakan agar tidak mengganggu pilihan selanjutnya
+    st.session_state.selected_book_from_recommendation = None
+
 # Selectbox untuk memilih buku favorit
-judul_pilihan = st.selectbox("📘 Pilih buku favorit Anda:", df['Judul'].unique())
+# Gunakan parameter 'key' dan 'value' (default) untuk mengontrol pilihan secara terprogram
+judul_pilihan = st.selectbox(
+    "📘 Pilih buku favorit Anda:",
+    df['Judul'].unique(),
+    index=df['Judul'].unique().tolist().index(initial_selection) if initial_selection else 0, # Set default atau dari callback
+    key='main_selectbox' # Beri key unik
+)
 
 if judul_pilihan:
     # Ambil data buku yang dipilih
@@ -94,19 +116,25 @@ if judul_pilihan:
 
     st.subheader("📚 Rekomendasi Buku Serupa:")
     if not df_rekomendasi.empty:
-        # Loop seperti semula untuk menampilkan rekomendasi secara vertikal
         for _, row in df_rekomendasi.iterrows():
-            col1, col2 = st.columns([1, 3]) # Kolom untuk gambar dan detail
+            col1, col2 = st.columns([1, 3])
             with col1:
                 gambar = cari_gambar_dari_id(row['ID'])
                 if gambar:
-                    st.image(Image.open(gambar), width=150) # Ukuran gambar dikembalikan
+                    st.image(Image.open(gambar), width=150)
                 else:
                     st.warning("Gambar tidak ditemukan.", icon="⚠️")
             with col2:
-                # Tampilan skor
+                # Membuat judul buku rekomendasi menjadi tombol (button)
+                # Saat diklik, panggil set_selected_book dengan judul buku ini
+                st.button(
+                    label=f"**{row['Judul']}**",
+                    key=f"rekomendasi_button_{row['ID']}", # Key harus unik
+                    on_click=set_selected_book,
+                    args=(row['Judul'],) # Argumen yang akan diteruskan ke fungsi on_click
+                )
+                
                 st.markdown(f"""
-    ### {row['Judul']}
     💯 **Skor Kesamaan Total:** {round(row['Skor_Total'], 2)}%
     ➡️ (Sinopsis : {round(row['Skor_Sinopsis_TFIDF'], 2)}% | Judul : {round(row['Skor_Judul_Levenshtein'], 2)}% | Penulis : {round(row['Skor_Penulis_Levenshtein'], 2)}%)
 
@@ -118,6 +146,6 @@ if judul_pilihan:
     """)
                 with st.expander("📝 Sinopsis"):
                     st.write(row['Sinopsis/Deskripsi'])
-            st.markdown("---") # Garis pemisah antar rekomendasi
+            st.markdown("---")
     else:
         st.info("Tidak ada rekomendasi yang ditemukan untuk buku ini.")
