@@ -99,7 +99,7 @@ if judul_pilihan:
                 )
                 st.markdown(f"""
     💯 **Skor Kesamaan Total:** {round(row['Skor_Total'], 2)}%  
-    ➡️ (Sinopsis : {round(row['Skor_Sinopsis_Levenshtein'], 2)}% | Judul : {round(row['Skor_Judul_Levenshtein'], 2)}% | Penulis : {round(row['Skor_Penulis_Levenshtein'], 2)}%)
+    ➡️ (Sinopsis : {round(row['Skor_Sinopsis_Levenshtein'], 2)}% | Judul : {round(row['Skor_Judul_Levenshtein'], 2)}% | Penulis : {round(row['Skor_Penulis_Levenshtein'], 2)}%" if row['Skor_Penulis_Levenshtein'] == 100 else ""})
 
     **Penulis:** {row['Penulis']}  
     **Penerbit:** {row['Penerbit']}  
