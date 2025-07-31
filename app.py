@@ -66,18 +66,23 @@ if judul_pilihan:
     st.markdown("---")
 
     # --- Hitung Skor Kemiripan (semua pakai Levenshtein) ---
-    df['Skor_Sinopsis_Levenshtein'] = df['Sinopsis/Deskripsi'].apply(lambda x: hitung_kemiripan_levenshtein(x, data_pilihan['Sinopsis/Deskripsi']))
-    df['Skor_Judul_Levenshtein'] = df['Judul'].apply(lambda x: hitung_kemiripan_levenshtein(x, data_pilihan['Judul']))
-    df['Skor_Penulis_Levenshtein'] = df['Penulis'].apply(lambda x: hitung_kemiripan_levenshtein(x, data_pilihan['Penulis']))
+    df['Skor_Sinopsis_Levenshtein'] = df['Sinopsis/Deskripsi'].apply(
+        lambda x: hitung_kemiripan_levenshtein(x, data_pilihan['Sinopsis/Deskripsi']))
+    df['Skor_Judul_Levenshtein'] = df['Judul'].apply(
+        lambda x: hitung_kemiripan_levenshtein(x, data_pilihan['Judul']))
+    df['Skor_Penulis_Levenshtein'] = df['Penulis'].apply(
+        lambda x: hitung_kemiripan_levenshtein(x, data_pilihan['Penulis']))
 
     # Bobot Kemiripan
     bobot_sinopsis = 0.6
     bobot_judul = 0.2
     bobot_penulis = 0.2
 
-    df['Skor_Total'] = (df['Skor_Sinopsis_Levenshtein'] * bobot_sinopsis) + \
-                       (df['Skor_Judul_Levenshtein'] * bobot_judul) + \
-                       (df['Skor_Penulis_Levenshtein'] * bobot_penulis)
+    df['Skor_Total'] = (
+        df['Skor_Sinopsis_Levenshtein'] * bobot_sinopsis +
+        df['Skor_Judul_Levenshtein'] * bobot_judul +
+        df['Skor_Penulis_Levenshtein'] * bobot_penulis
+    )
 
     df_rekomendasi = df[df['ID'] != data_pilihan['ID']].sort_values(by='Skor_Total', ascending=False).head(5)
 
@@ -97,15 +102,19 @@ if judul_pilihan:
                     key=f"rekomendasi_button_{row['ID']}",
                     on_click=lambda judul=row['Judul']: st.session_state.update({'selected_book_from_recommendation': judul})
                 )
-                st.markdown(f"""
-    💯 **Skor Kesamaan Total:** {round(row['Skor_Total'], 2)}%  
-    ➡️ (Sinopsis : {round(row['Skor_Sinopsis_Levenshtein'], 2)}% | Judul : {round(row['Skor_Judul_Levenshtein'], 2)}% | Penulis : {round(row['Skor_Penulis_Levenshtein'], 2)}%" if row['Skor_Penulis_Levenshtein'] == 100 else ""})
 
-    **Penulis:** {row['Penulis']}  
-    **Penerbit:** {row['Penerbit']}  
-    **Tanggal Terbit:** {row['Tanggal Terbit']}  
-    **Halaman:** {row['Halaman']}  
-    **ISBN:** {row['ISBN']}
+                # Tampilkan skor penulis hanya jika 100%
+                penulis_similarity = f" | Penulis : {round(row['Skor_Penulis_Levenshtein'], 2)}%" if row['Skor_Penulis_Levenshtein'] == 100 else ""
+
+                st.markdown(f"""
+💯 **Skor Kesamaan Total:** {round(row['Skor_Total'], 2)}%  
+➡️ (Sinopsis : {round(row['Skor_Sinopsis_Levenshtein'], 2)}% | Judul : {round(row['Skor_Judul_Levenshtein'], 2)}%{penulis_similarity})
+
+**Penulis:** {row['Penulis']}  
+**Penerbit:** {row['Penerbit']}  
+**Tanggal Terbit:** {row['Tanggal Terbit']}  
+**Halaman:** {row['Halaman']}  
+**ISBN:** {row['ISBN']}
                 """)
                 with st.expander("📝 Sinopsis"):
                     st.write(row['Sinopsis/Deskripsi'])
